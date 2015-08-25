@@ -63,6 +63,8 @@
    so they are not considered to be syntax part."
   #{})
 
+(def ^:dynamic ^:private *keywords* #{})
+
 (def ^:private specials (atom #{}))
 
 (defmacro reg-sym
@@ -72,15 +74,23 @@
 
 (reg-sym do)
 
-(defn prim? [v] ((some-fn (complement symbol?)
-                          (partial contains? *locals*)
-                          (partial resolve)) v))
+(defn- check-locals [n] 
+  (*locals* n))
 
-(def prim (r/guard r/any prim?))
+(defn prim? [] (every-pred
+                 (complement *keywords*)
+                 (some-fn (complement symbol?)
+                          check-locals
+                          (partial resolve))))
+
+(defn prim [] (r/guard r/any (prim?)))
 (defn clj-mixfix
    "builds mixfix expression table with clojure syntax"
    [table]
-   (r/exp-table table prim))
+   (binding 
+     [*keywords* (into #{} 
+                       (for [[_ i] table [j _] i k j :when (symbol? k)] k))]
+     (r/exp-table table (prim))))
 
 (def ^:dynamic *lang* 
   "specifies current language"
@@ -97,18 +107,19 @@
   "Parses 1 level syntax with mixfix operators. Returns plain clojure form
    without them if succeed."
   [col]
+  (let [prim-check (prim?)]
     (if (< (count col) 2) 
       (apply list col) 
       (let [parser (get-parser)
             r (r/run parser col)]
         (cond 
-          (empty? r) (if (every? prim? col)
+          (empty? r) (if (every? prim-check col)
                        col
                        (throw (IllegalArgumentException. 
                                 (format "no parse for: %s" col))))
           (= 1 (count r)) (first r)
           :else (throw (IllegalArgumentException. 
-                         (format "%s is ambiguous, options are: %s" col r)))))))
+                         (format "%s is ambiguous, options are: %s" col r))))))))
 
 (defn parse-all
   "Deep version of `parse`. Parses also inside sub-forms."

@@ -48,6 +48,7 @@
 
 (deftest arith-print []
  (check (+ 2 3) (2 + 3))
+ ; (check (quot 2 3) (quot 2 3)) -- TODO: doesn't work because of spaces
  (check (+ (+ 2 3) 4) (2 + 3 + 4))
  (check (+ 2 (+ 3 4)) (2 + (3 + 4)))
  (check (+ (* 2 3) 4) (2 * 3 + 4))
@@ -65,3 +66,13 @@
            (if 2 == 3 then if 4 == 3 then if 5 == 6 then 11 else 10 else 20))
     (is (thrown? IllegalArgumentException 
                (binding [*lang* bools] (parse '(if 2 = 3 then 2 else 3)))))))
+
+(defn sp [a b] [a b])
+(op 10 sp [[X] [x]])
+
+(deftest space-operator []
+ (check (+ 2 2) (2 + 2))
+ (check (sp 2 2) (2 2))
+ (check (sp 2 (sp 2 2)) (2 2 2))
+ )
+
