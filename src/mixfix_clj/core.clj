@@ -123,7 +123,7 @@
     `(~@f)))
 
 (defn propagate-%
-  ([v] (w/prewalk (fn [i] (if (list? i) (cons '%1 i) i)) v))
+  ([v] (w/prewalk (fn [i] (if (list? i) (cons (var %1) i) i)) v))
   ([lang v] (w/prewalk (fn [i] (if (list? i) (list* '%1* lang i) i)) v)))
 
 (defmacro %

@@ -65,4 +65,3 @@
            (if 2 == 3 then if 4 == 3 then if 5 == 6 then 11 else 10 else 20))
     (is (thrown? IllegalArgumentException 
                (binding [*lang* bools] (parse '(if 2 = 3 then 2 else 3)))))))
-
