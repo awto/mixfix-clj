@@ -1,4 +1,4 @@
-(ns mixfix-clj.printer
+(ns clojure.tools.mixfix.printer
   "Utilities for adding mixfix operators into plain clojure forms.")
 
 (defn- group-pict [xf]

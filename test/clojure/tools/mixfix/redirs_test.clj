@@ -1,6 +1,6 @@
-(ns mixfix-clj.redirs_test
+(ns clojure.tools.mixfix.redirs_test
   (:require [clojure.test :refer :all]
-            [mixfix-clj.redirs :as r]
+            [clojure.tools.mixfix :as r]
             ))
 
 (r/op 400 + [[x] + [X]])

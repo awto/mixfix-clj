@@ -1,4 +1,4 @@
-(ns mixfix-clj.parser
+(ns clojure.tools.mixfix.parser
   "Parsing combinators for ambiguous grammars with left recursion.
 
   Based on Johnson's 'Memoization in Top-Down Parsing'"

@@ -1,5 +1,5 @@
-(ns mixfix-clj.parser-test
-  (:require [mixfix-clj.parser :refer :all]
+(ns clojure.tools.mixfix.parser-test
+  (:require [clojure.tools.mixfix.parser :refer :all]
             [clojure.test :refer :all])
   (:refer-clojure :exclude [list seq]))
 

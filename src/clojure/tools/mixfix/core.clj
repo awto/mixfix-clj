@@ -1,6 +1,6 @@
-(ns mixfix-clj.core
-  (:require [mixfix-clj.parser :as r]
-            [mixfix-clj.printer :as p]
+(ns clojure.tools.mixfix.core
+  (:require [clojure.tools.mixfix.parser :as r]
+            [clojure.tools.mixfix.printer :as p]
             [clojure.walk :as w]))
 
 (defmacro declare-lang 

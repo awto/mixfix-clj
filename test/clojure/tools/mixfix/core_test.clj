@@ -1,7 +1,7 @@
-(ns mixfix-clj.core-test
+(ns clojure.tools.mixfix.core-test
   (:require [clojure.test :refer :all]
-            [mixfix-clj.core :refer :all]
-            [mixfix-clj.parser :as r]
+            [clojure.tools.mixfix.core :refer :all]
+            [clojure.tools.mixfix.parser :as r]
             ))
 
 (op 400 + [[x] + [X]])
