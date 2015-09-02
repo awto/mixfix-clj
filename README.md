@@ -11,7 +11,10 @@ It simply allows writing clojure forms like this:
 
 ```
 
-But probably it is more useful for easy EDSL syntax definitions.
+You can also easely define nice syntax of your next EDSL.
+
+This is just a simple macros, no extra build steps, no leiningen plugins are 
+required. 
 
 ## Usage
 
@@ -22,7 +25,7 @@ Import the library:
   (:require [clojure.tools.mixfix :as m]))
 ```
 
-Now we define some operators:
+Now define some operators:
 
 ```clojure
 
@@ -33,7 +36,6 @@ Now we define some operators:
 (m/op 200 or [[x] or [X]]) 
 (m/op 300 and [[x] and [X]]) 
 (m/op 400 = [[x] is [x]])
-(m/op 100 s [[x] [X]])
 
 (defn s [a b] [a b])
 
@@ -41,7 +43,7 @@ Now we define some operators:
 (m/op 110 if [if [X] then [x] else [x]])
 ```
 
-And now use them:
+And use them:
 
 ```clojure
 
@@ -89,14 +91,24 @@ their content.
 
 ```
 
+There is also `clojure.tools.mixfix/defn` macros which simply redirects to 
+`clojure.core/defn` but wraps arguments with operators parsing macros.
+
 Plain clojure forms may be also converted back into mixfix syntax.
 
 
 ```clojure
 
-(m/print (+ (+ (+ 1 2) 3) 4) 5)); ==> (1 + 2 + 3 + 4 + 5)
+(m/to-mixfix (- (+ (- (+ 1 2) 3) 4) 5))); ==> (1 + 2 - 3 + 4 - 5)
 
 ``` 
+
+## Associative operators
+
+Clojure often permits many arguments in a form for typically binary operators,
+such as `clojure.core/+` etc. The library can handle such operators too. 
+For this in the vector of syntax hole definition (with X or x or number) add 
+"assoc" keyword and optionally identity symbol. 
 
 ## Syntax scopes
 

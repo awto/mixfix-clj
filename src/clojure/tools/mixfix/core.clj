@@ -12,18 +12,24 @@
 
 (declare-lang global)
 
+#_(op 10000 list [X] [x assoc])
+
 (defn- picture-item?
   [item] (or (symbol? item)
              (and 
-               (vector? item) 
-               (= 1 (count item))
+               (vector? item)
+               (if-let [v (second item)] 
+                 (and
+                   (#{"assoc"} (name v))
+                   (<= (count item) 3))
+                 (= 1 (count item)))
                (let [[i] item]
                  (or 
                    (number? i)
-                   (#{"X" "x"} (name i))
-                   )))))
+                   (#{"X" "x"} (name i)))))))
 
-(defn- picture-arity [picture] (count (filter number? picture)))
+(defn- picture-arity [picture] 
+  (count (filter number? picture)))
 
 (defn- lang-def? [d] (and (:read d) (:write d)))
 
@@ -33,18 +39,44 @@
     (for [i picture]
       (cond
         (symbol? i) i
-        (vector? i) (let [[mod] i]
+        (vector? i) (let [[mod opt] i]
                       (if (number? mod) mod
                         (case (name mod)
                           "X" nprec
                           "x" prec)))))))
 
+(defn- get-assoc [picture]
+  (let [[[x [_ _ opt]] & rst] 
+        (filter #(some-> % second second name #{"assoc"}) 
+                (map-indexed list (filter vector? picture)))]
+    (when rst
+      (throw (IllegalArgumentException. "only one assoc spec is allowed")))
+    (if x [x opt] nil)))
+
 (defn- add-op [table prec symbol pict]
-  (let [cpict (compile-picture prec pict)]
-    (-> table 
-      (update-in [:read prec] (fnil conj #{}) [cpict symbol])
-      (assoc-in [:write symbol (picture-arity cpict)] 
-                [prec (p/compile-pict cpict)])
+  (let [opts (into #{} (keep keyword? pict))
+        rpict (remove keyword? pict)
+        cpict (compile-picture prec rpict)
+        asc (get-assoc pict)
+        arity (picture-arity cpict)
+        ppict (p/compile-pict cpict)
+        fun (if-let [[ix iden] asc]
+              (fn [& args]
+                (let [[pre [cur & post]] (split-at ix args)]
+                  (cons symbol 
+                        (if (= iden cur)
+                          (concat pre post)
+                        (if (and (coll? cur) (= (first cur) symbol)) 
+                          (concat pre (rest cur))
+                          args)))))
+              (fn [& args] (cons symbol args)))
+        [arity popts] (if-let [[ix iden] asc]
+                        ['* (concat ppict [arity ix iden])]
+                        [arity ppict]
+                        )]
+    (-> table
+      (update-in [:read prec] (partial apply assoc) [cpict fun])
+      (assoc-in [:write symbol arity] [prec popts])
       (assoc-in [:parser] nil))))
 
 (defn mk-op [lang prec picture symbol]
@@ -55,8 +87,10 @@
    operator's scope. The second is precedence level of the operator. The bigger 
    the number the tightly the operator binds. The third is resulting form head
    symbol. And the last one is a mixfix picture of the operator."
-  ([lang prec symbol picture] `(mk-op ~lang ~prec '~symbol '(~@picture)))
-  ([prec symbol picture] `(mk-op global ~prec '~symbol '(~@picture))))
+  ([lang prec symbol picture] 
+    `(do (mk-op ~lang ~prec '~symbol '(~@picture)) nil))
+  ([prec symbol picture] 
+    `(do (mk-op global ~prec '~symbol '(~@picture)) nil)))
 
 (def ^:dynamic *locals*
   "Specifies locally defined symbols, 
@@ -74,8 +108,7 @@
 
 (reg-sym do)
 
-(defn- check-locals [n] 
-  (*locals* n))
+(defn- check-locals [n] (*locals* n))
 
 (defn prim? [] (every-pred
                  (complement *keywords*)
@@ -108,8 +141,8 @@
    without them if succeed."
   [col]
   (let [prim-check (prim?)]
-    (if (< (count col) 2) 
-      (apply list col) 
+    (if (< (count col) 2)
+      (apply list col)
       (let [parser (get-parser)
             r (r/run parser col)]
         (cond 
@@ -161,7 +194,7 @@
 (defn to-mixfix-1
   "Reverse of %. Takes a plain clojure form and transforms it to the one with
    mixifix operators."
-  [col] (->> col (p/add-ops (:write @*lang*)) (apply list)))
+  [col] (->> col (p/from-table (:write @*lang*)) (apply list)))
 
 (defn to-mixfix [col] (w/prewalk 
                         #(if (and (list? %) (> (count %) 1)) 

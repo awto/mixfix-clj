@@ -178,7 +178,7 @@
                     (swap! vals conj [npos nval])
                     (doseq [i @conts] (i npos nval)))))))))))
 
-(defn run 
+(defn run
   "Runs the parser for `input`. Returns vector of possible parser's values.
    It is only 1 value if the parser is non ambiguous."
   [this input]
@@ -207,9 +207,7 @@
         s (f (trace "rec" (memo (deferRef r))))]
     (reset! r s)))
 
-(defprotocol ^:private KwVal) 
-
-(def ^:private kwVal (reify KwVal))
+(def ^:private kwVal {})
 
 (defn full
   [this] ($ first (seq this eof)))
@@ -235,7 +233,7 @@
 
 (defn exp-table 
   "Builds mixfix expressions parser."
-  [table factor] 
+  [table factor] {:pre [(map? table), (not (empty? table))]}
     (let [
           st (into (sorted-map) table)
           m (into (sorted-map) (for [[i] table] [i (atom zero)]))
@@ -255,13 +253,12 @@
                          [0 f]
                          (for [[i v] (rseq st)]
                            [i (apply alt
-                                     (for [[pat sym] v]
+                                     (for [[pat fun] v]
                                        ($
-                                         (fn [v] 
-                                           ;TODO: here some more generic action is possible
-                                           (cons sym (filter 
-                                                       #(not (satisfies? KwVal %)) v)))
-                                         (apply seq (map prim pat)))))])))]
+                                         (fn [v]
+                                           (apply fun (filter
+                                                        #(not (identical? kwVal %)) v)))
+                                         (seq (map prim pat)))))])))]
       (doseq [[k ref] m]
         (reset! ref (memo (trace (format "layer:%d" k) (layers k)))))
       res))
