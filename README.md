@@ -2,7 +2,7 @@
 
 Provides mixfix syntax for clojure language.
 
-It simply allows writing clojure forms like this:
+It simply allows writing clojure expressions like this:
 
 ```clojure
 
@@ -29,18 +29,18 @@ Now define some operators:
 
 ```clojure
 
-(m/op 400 + [[x] + [X]])
-(m/op 400 - [[x] - [X]])
-(m/op 500 * [[x] * [X]])
-(m/op 500 / [[x] / [X]])
-(m/op 200 or [[x] or [X]]) 
-(m/op 300 and [[x] and [X]]) 
-(m/op 400 = [[x] is [x]])
+(m/op 400 + [[] + [+]])
+(m/op 400 - [[] - [+]])
+(m/op 500 * [[] * [+]])
+(m/op 500 / [[] / [+]])
+(m/op 200 or [[] or [+]]) 
+(m/op 300 and [[] and [+]]) 
+(m/op 400 = [[] is []])
 
 (defn s [a b] [a b])
 
-(m/op 100 when [if [X] then [x]])
-(m/op 110 if [if [X] then [x] else [x]])
+(m/op 100 if [if [+] then []])
+(m/op 110 if [if [+] then [] else []])
 ```
 
 And use them:
@@ -60,22 +60,23 @@ And use them:
 The arguments for `op` are:
 1. optional language name
 2. precedence level, the bigger the number the tightly the operator binds
-3. head symbol for clojure form the operator will be converted too
+3. head symbol for clojure application list the operator will be converted to
 4. syntax picture
 
-Syntax picture is a vector of symbols interleaved with another single 
-element vectors specifying syntax holes. 
+Syntax picture is a vector of symbols interleaved with another vectors 
+specifying syntax holes. The hole definition vector may contain various options
+for that hole. They may be either:
 
-In the hole definition may be either:
-
+  * empty - means same precedence level as its operator 
   * number - specifies any precedence explicitly 
-  * X - means precedence is bigger than precedence of the operator in this 
-    position, literally just an increment
-  * x  - means precedence is the same as the operator's one
+  * +  - precedence is the same as the operator's one
+  * assoc - will unwrap sub-form if it has same head symbol as the operator
+  * id <value> - for assoc operators will treat <value> as identity for the 
+    operation, by default `nil`. 
 
-So this is it, now we can use mixfix operatos. It is converted into plain 
-clojure form using `%` macros. It walks through all sub-forms and parses 
-their content.
+So this is it, now we can use mixfix operators. It is converted into plain 
+clojure application form using `%` macros. It walks through all sub-forms and 
+parses their content.
 
 ```clojure
 
@@ -85,7 +86,7 @@ their content.
 (m/% let [x 2 y 2] (x + y - 2)); ==> 4
 (m/% if 2 is 3 then if 3 is 4 then 5 else 6); ==> 4
 
-;; it also composes with plain clojure forms: 
+;; it also composes with plain clojure application forms: 
 
 (m/% 2 + (- 2 2)) ; ==> 2
 
@@ -94,7 +95,7 @@ their content.
 There is also `clojure.tools.mixfix/defn` macros which simply redirects to 
 `clojure.core/defn` but wraps arguments with operators parsing macros.
 
-Plain clojure forms may be also converted back into mixfix syntax.
+Plain clojure application may be also converted back into mixfix syntax.
 
 
 ```clojure
@@ -105,10 +106,81 @@ Plain clojure forms may be also converted back into mixfix syntax.
 
 ## Associative operators
 
-Clojure often permits many arguments in a form for typically binary operators,
-such as `clojure.core/+` etc. The library can handle such operators too. 
-For this in the vector of syntax hole definition (with X or x or number) add 
-"assoc" keyword and optionally identity symbol. 
+Clojure often permits many arguments in an expression for typically binary 
+operators, such as `clojure.core/+` etc. The library can handle such operators 
+too. For this in the vector of syntax hole definition add  `assoc` option and 
+optionally identity symbol for that operation. For example for addition:
+
+```clojure
+
+(op 400 + [[assoc id 0] + [+]])
+
+; now + will be unwrapped into single `+` form 
+
+(macroexpand '(r/% 1 + 2 + 3)) ; ==> (+ 1 2 3)
+(macroexpand '(r/% 0 + 1)) ; ==> (+ 1)
+
+```
+
+This isn't useful much for arithmetic operators unless generated code must
+be readable. But it is useful for example for `clojure.core/list`. 
+
+## Interleaving with clojure applications
+
+There are two ways to use plain clojure application forms inside mixfix syntax.
+By default there is an operator for space or comma (and it is the only 
+predefined operator in this version).
+
+```clojure
+
+(op 1000 form [[assoc] [+]])
+
+```
+
+The library provides an auxiliary macros `clojure.tools.mixfix.core/form` it 
+simply splices its arguments in a list without doing with them anything. So as 
+a result it will be plain clojure application. For example
+
+```clojure
+
+(m/op 200 if [if [+] then []])
+
+(clojure.walk/macroexpand-all '(% if = 2 2 then :t)) 
+; ==> (if (= 2 2) (do :t))
+
+```
+
+This option may be not convenient to detect syntax error sometimes, for example
+if we define "==" operator but accidently use "=" instead. 
+
+```clojure
+(clojure.walk/macroexpand-all '(% if 2 = 2 then :t)) 
+; ==> (if (2 = 2) (do :t))
+```
+
+And clojure will complain about "2" isn't function, and this may be confusing. 
+This is an issue only for operators clashing with predefined function or macros 
+names in scope. The library will only accept them if it can `clojure.core/resolve` 
+all the items of the list. It is also possible to disable such behavior by 
+removing such operator with: 
+
+```clojure
+(m/remove-op form)
+```
+
+In this case clojure plain application can still be parsed but it must be in 
+parens. Here the parens symbols are overloaded. They may be used for grouping
+sub-expressions and to specify clojure applications.
+
+```clojure
+(clojure.walk/macroexpand-all '(% if (= 2 2) then :t)) 
+; ==> (if (2 = 2) (do :t))
+```
+
+In this case after the library detected parser error within parens it will try 
+to interpret them as a plain clojure list. This behavior may be turned off 
+using `clojure.tools.mixfix.core/*clojure-apps*` dynamic variable if your EDSL
+doesn't need it.
 
 ## Syntax scopes
 
@@ -139,6 +211,10 @@ diagnostic capabilities. There is a macros for registering such kind of keywords
 (namely `clojure.tools.mixfix.core/reg-sym`). But even registered it won't work 
 anyway. Not the problem is ordering of macros expansion. But if the library also 
 uses mixfix-clj for syntax parsing it should work without problems.
+
+At the moment there is no namespaces support for operator's part. They are 
+simply compared by `clojure.core\name`. But their support is planned for some
+next version. This will be another level of operations scoping.
 
 ## License
 

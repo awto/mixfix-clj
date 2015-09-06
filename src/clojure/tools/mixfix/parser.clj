@@ -60,7 +60,7 @@
   "Consumes single token and returns it."
   [pos inp cont]
   (when (< pos (count inp)) 
-    (cont (+ pos 1) (nth inp pos)))) 
+    (cont (inc pos) (nth inp pos)))) 
 
 (defn tok
   "If without arguments it returns parser consuming any token, 

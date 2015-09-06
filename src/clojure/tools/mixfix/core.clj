@@ -11,39 +11,46 @@
 
 (declare-lang global)
 
-#_(op 10000 list [X] [x assoc])
+(defn- hole-opts [opts] 
+  (->> opts (partition 2 1) (map vec) (into {})))
 
-(defn- picture-item?
-  [item] (or (symbol? item)
-             (and 
-               (vector? item)
-               (if-let [v (second item)] 
-                 (and
-                   (#{"assoc"} (name v))
-                   (<= (count item) 3))
-                 (= 1 (count item)))
-               (let [[i] item]
-                 (or 
-                   (number? i)
-                   (#{"X" "x"} (name i)))))))
-
-(defn- picture-arity [picture] 
+(defn- picture-arity [picture]
   (count (filter number? picture)))
 
 (defn- lang-def? [d] (and (:read d) (:write d)))
 
-(defn- compile-picture 
-  [prec picture] {:pre [(number? prec) (every? picture-item? picture)]}
-  (let [nprec (inc prec)]
-    (for [i picture]
-      (cond
-        (symbol? i) i
-        (vector? i) (let [[mod opt] i]
-                      (if (number? mod) mod
-                        (case (name mod)
-                          "X" nprec
-                          "x" prec)))))))
+(defn- compile-hole [prec opts] 
+  (let [[pre [_ ids & post]] (split-with #(not= :id (keyword %)) opts)
+        opts (->> (concat pre post) (map (some-fn keyword identity)) set)
+        [pname & nprec] (filter (some-fn #{:+} number?) opts)
+        _ (when-not (empty? nprec)
+            (throw (IllegalArgumentException. 
+                     (format "only single precidence is allowed in %s" opts))))
+        prec (cond
+               (number? pname) pname
+               (nil? pname) prec
+               :else (inc prec))
+        asc (contains? opts :assoc)
+        rst (vec (remove (some-fn #{:+ :assoc} number?) opts))]
+    (when-not (empty? rst)
+      (throw (IllegalArgumentException. 
+                     (format "unknown items in syntax hole definition %s" rst))))
+    [prec asc ids]))
 
+(defn- compile-picture
+  [prec picture] {:pre [(number? prec)]}
+  (let [nprec (inc prec)
+        asc (volatile! nil)
+        tpict (for [i picture] (if (coll? i) (compile-hole prec i) i))
+        rpict (for [i tpict] (if (coll? i) (first i) i))
+        [asc & ascr] (->> tpict (filter coll?)
+                       (keep-indexed #(if (second %2) [%1 (last %2)])))
+        _ (when-not (empty? ascr) 
+            (throw (IllegalArgumentException. 
+                                 (format 
+                                   "only a single assoc option is allowed %s"
+                                   picture))))]
+    [(vec rpict) asc]))
 
 (defn- print-group-pict [xf]
   (let [buf (volatile! [])] 
@@ -106,36 +113,41 @@
                 (map-indexed list (filter vector? picture)))]
     (when rst
       (throw (IllegalArgumentException. "only one assoc spec is allowed")))
-    (if x [x opt] nil)))
+    (if x [x opt])))
 
 (defn- add-op [table prec symbol pict]
-  (let [opts (into #{} (keep keyword? pict))
-        rpict (remove keyword? pict)
-        cpict (compile-picture prec rpict)
-        asc (get-assoc pict)
+  (let [[cpict asc] (compile-picture prec pict)
         arity (picture-arity cpict)
         ppict (print-compile-pict cpict)
         fun (if-let [[ix iden] asc]
               (fn [& args]
                 (let [[pre [cur & post]] (split-at ix args)]
                   (cons symbol 
-                        (if (= iden cur)
+                        (if (= iden cur) 
                           (concat pre post)
-                        (if (and (coll? cur) (= (first cur) symbol)) 
-                          (concat pre (rest cur))
-                          args)))))
+                          (if (and (coll? cur) (= (first cur) symbol)) 
+                            (concat pre (rest cur) post)
+                            args)))))
               (fn [& args] (cons symbol args)))
         [arity popts] (if-let [[ix iden] asc]
                         ['* (concat ppict [arity ix iden])]
-                        [arity ppict]
-                        )]
+                        [arity ppict])]
     (-> table
       (update-in [:read prec] (partial apply assoc) [cpict fun])
       (assoc-in [:write symbol arity] [prec popts])
+      (update-in [:origin] conj [prec symbol pict])
       (assoc-in [:parser] nil))))
+
+(defn- add-ops [table ops]
+  (reduce (fn [table op] (apply (partial add-op table) op)) table ops))
+
+(defn- del-op [table symbol]
+  (add-ops {} (remove #(= symbol (second %)) (:origin table))))
 
 (defn mk-op [lang prec picture symbol]
   (swap! lang add-op prec picture symbol))
+
+(defn rm-op [lang symbol] (swap! lang del-op symbol))
 
 (defmacro op
   "Defines mixfix operator. First optional argument is a name for the 
@@ -145,7 +157,12 @@
   ([lang prec symbol picture] 
     `(do (mk-op ~lang ~prec '~symbol '(~@picture)) nil))
   ([prec symbol picture] 
-    `(do (mk-op global ~prec '~symbol '(~@picture)) nil)))
+    `(do (mk-op *lang* ~prec '~symbol '(~@picture)) nil)))
+
+(defmacro remove-op
+  "removes all operators which output forms with this head symbol"
+  ([lang symbol] `(do (rm-op ~lang '~symbol) nil))
+  ([symbol] `(do (rm-op *lang* '~symbol) nil)))
 
 (def ^:dynamic *locals*
   "Specifies locally defined symbols, 
@@ -176,13 +193,16 @@
    "builds mixfix expression table with clojure syntax"
    [table]
    (binding 
-     [*keywords* (into #{} 
-                       (for [[_ i] table [j _] i k j :when (symbol? k)] k))]
+     [*keywords* (set (for [[_ i] table [j _] i k j :when (symbol? k)] k))]
      (r/exp-table table (prim))))
 
 (def ^:dynamic *lang* 
   "specifies current language"
   global)
+
+(defn describe-lang 
+  ([] (:origin @*lang*))
+  ([lang] (:origin @lang)))
 
 (defn- get-parser []
   (let [ldef @*lang*]
@@ -190,6 +210,11 @@
         (let [res (clj-mixfix (:read ldef))]
           (swap! *lang* assoc :parser res)
           res))))
+
+
+(def ^:dynamic *clojure-apps* 
+  "Defines if the library should try to fallback to plain clojure forms parsing" 
+  true)
 
 (defn parse
   "Parses 1 level syntax with mixfix operators. Returns plain clojure form
@@ -201,7 +226,7 @@
       (let [parser (get-parser)
             r (r/run parser col)]
         (cond 
-          (empty? r) (if (every? prim-check col)
+          (empty? r) (if (and *clojure-apps* (every? prim-check col))
                        col
                        (throw (IllegalArgumentException. 
                                 (format "no parse for: %s" col))))
@@ -255,6 +280,11 @@
                         #(if (and (list? %) (> (count %) 1)) 
                              (to-mixfix-1 %) %) 
                         col))
+
+
+(defmacro form [& args] `(~@args))
+
+(op 1000 form [[assoc] [+]])
 
 nil
 
