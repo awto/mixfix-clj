@@ -11,10 +11,10 @@ It simply allows writing clojure expressions like this:
 
 ```
 
-You can also easely define nice syntax of your next EDSL.
+You can also easily define nice syntax of your next EDSL.
 
-This is just a simple macros, no extra build steps, no leiningen plugins are 
-required. 
+This is just simple macros, no extra build steps and no leiningen plugins are 
+required.
 
 ## Usage
 
@@ -58,25 +58,26 @@ And use them:
 ```
 
 The arguments for `op` are:
-1. optional language name
-2. precedence level, the bigger the number the tightly the operator binds
-3. head symbol for clojure application list the operator will be converted to
-4. syntax picture
+
+  1. optional language name
+  2. precedence level, the bigger the number the tightly the operator binds
+  3. head symbol for clojure application list the operator will be converted to
+  4. syntax picture
 
 Syntax picture is a vector of symbols interleaved with another vectors 
-specifying syntax holes. The hole definition vector may contain various options
-for that hole. They may be either:
+specifying syntax holes. The hole definition vector may contain various options. 
+In the current version they may be either: 
 
-  * empty - means same precedence level as its operator 
-  * number - specifies any precedence explicitly 
-  * +  - precedence is the same as the operator's one
-  * assoc - will unwrap sub-form if it has same head symbol as the operator
-  * id <value> - for assoc operators will treat <value> as identity for the 
-    operation, by default `nil`. 
+  * `empty` - means same precedence level as its operator
+  * `number` - specifies any precedence explicitly
+  * `+` - precedence is the same as the operator's one
+  * `assoc` - will unwrap sub-form if it has same head symbol as the operator
+  * `id <value>`  - for assoc operators will treat as identity for the 
+    operation, by default `nil`.
 
-So this is it, now we can use mixfix operators. It is converted into plain 
-clojure application form using `%` macros. It walks through all sub-forms and 
-parses their content.
+So this is it. Mixfix operators are converted into plain clojure application 
+form using ` %` macros. It walks through all sub-forms and parses their content 
+too. There is also shallow version `%1` which parses only a single level.
 
 ```clojure
 
@@ -115,7 +116,7 @@ optionally identity symbol for that operation. For example for addition:
 
 (op 400 + [[assoc id 0] + [+]])
 
-; now + will be unwrapped into single `+` form 
+; now + will be parsed into single `+` form
 
 (macroexpand '(r/% 1 + 2 + 3)) ; ==> (+ 1 2 3)
 (macroexpand '(r/% 0 + 1)) ; ==> (+ 1)
@@ -126,10 +127,9 @@ This isn't useful much for arithmetic operators unless generated code must
 be readable. But it is useful for example for `clojure.core/list`. 
 
 ## Interleaving with clojure applications
-
-There are two ways to use plain clojure application forms inside mixfix syntax.
+There are two ways to use plain clojure application forms inside mixfix syntax. 
 By default there is an operator for space or comma (and it is the only 
-predefined operator in this version).
+predefined operator in this version of the library).
 
 ```clojure
 
@@ -169,51 +169,60 @@ removing such operator with:
 ```
 
 In this case clojure plain application can still be parsed but it must be in 
-parens. Here the parens symbols are overloaded. They may be used for grouping
-sub-expressions and to specify clojure applications.
+parens. This is a kind of parenthesis symbols overloading. They may be used for 
+grouping mixfix sub-expressions and for specify clojure applications.
 
 ```clojure
 (clojure.walk/macroexpand-all '(% if (= 2 2) then :t)) 
 ; ==> (if (2 = 2) (do :t))
 ```
 
-In this case after the library detected parser error within parens it will try 
-to interpret them as a plain clojure list. This behavior may be turned off 
-using `clojure.tools.mixfix.core/*clojure-apps*` dynamic variable if your EDSL
-doesn't need it.
+After the library detected parser error within parens it will try to interpret 
+them as a plain clojure list. Library will conclude the form is ok if all 
+symbols there can be resolved. This behavior may be also turned off using 
+`clojure.tools.mixfix.core/*clojure-apps*` dynamic variable if your EDSL 
+doesn't need it. After only mixfix predefined operators can be present in 
+parsed expression.
+
+Another thing may be useful for custom EDSL, is `clojure.tools.mixfix/*locals*` 
+variable, which is a set of symbols bound to some local variable in a form 
+currently parsed. By default it is inited from &env parameter, but for custom 
+EDSL, if it has some custom bound names they must be added to the set.
 
 ## Syntax scopes
 
-If some operators belong only to some EDSL (passed as parameters to some macros) 
-they may be assigned to some named scope. This scope can be used in parse function 
-to convert it to plain clojure form for further handling by EDSL implementation. 
+If some operators belong only to some EDSL (passed as parameters to some macros)
+they may be assigned to some named scope. This scope can be used in parse 
+function to convert it to plain clojure form for further handling by EDSL 
+implementation. 
 
-Such scope is defined using `clojure.tools.mixfix.core/declare-lang` macros. The 
+Such scope is defined using `clojure.tools.mixfix.core/declare-lang` macros. The
 first parameter is a name of the scope. The second optional parameter is another 
 scope where initial operators' definitions are to be copied from. It creates 
-a variable with the same name which is used for referencing the scope. It may be 
-passed as the optional first argument in `op` directives. And it may be passed to 
-`clojure.tools.mixfix.core/parse` function via dynamic variable 
+a variable with the same name which is used for referencing the scope. It may be
+passed as the optional first argument in `op` directives. And it may be passed 
+to `clojure.tools.mixfix.core/parse` function via dynamic variable 
 `clojure.tools.mixfix.core/*lang*` form the macro receiving EDSL expressions as 
-parameters. Variable `clojure.tools.mixfix.core/global` is used as default scope. 
-There is also corresponding macros `%*` with additional parameter for the scope 
-specification.
+parameters. Variable `clojure.tools.mixfix.core/global` is used as default
+scope. There is also corresponding macros `%*` with additional parameter for the
+scope specification.
 
 ## Limitations
 
-If some library implements its own EDSL syntax parser it will not compose well with 
-this library. An example is `clojure.test/is`. It may take expected exception thrown 
-specification with `thrown?` keyword. It is not macros and it is not function. It is 
-just a part of another language `clojure.test/is` can understand. On the other hand 
-mixfix-clj doesn't know anything about this keyword. So it will report parser error. 
-It could ignore this and leave the form as is but it would significantly reduce 
-diagnostic capabilities. There is a macros for registering such kind of keywords 
-(namely `clojure.tools.mixfix.core/reg-sym`). But even registered it won't work 
-anyway. Not the problem is ordering of macros expansion. But if the library also 
-uses mixfix-clj for syntax parsing it should work without problems.
+If some library implements its own EDSL syntax parser it will not compose well 
+with this library. An example is `clojure.test/is`. It may take expected 
+exception thrown specification with `thrown?` keyword. It is not a macros and 
+it is not a function. It is just a part of another language `clojure.test/is` 
+can understand. On the other hand mixfix-clj doesn't know anything about this 
+keyword. So it will report parser error. It could ignore this and leave the 
+form as is but it would significantly reduce diagnostic capabilities. There is 
+a macros for registering such kind of keywords (namely 
+`clojure.tools.mixfix.core/reg-sym`). But even registered it won't work anyway. 
+Not the problem is ordering of macros expansion. But if the library also uses 
+mixfix-clj for syntax parsing it should work without problems.
 
 At the moment there is no namespaces support for operator's part. They are 
-simply compared by `clojure.core\name`. But their support is planned for some
+simply compared by `clojure.core/name`. But their support is planned for some
 next version. This will be another level of operations scoping.
 
 ## License
