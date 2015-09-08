@@ -20,11 +20,12 @@
   [name this] {:pre [(parser? this)]}
   (if *enableTrace*
     (fn [pos inp cont]
-      (println "> " name pos this)
-      (this pos inp
-            (fn [npos nval] 
-              (println "< " name pos nval this)
-              (cont npos nval))))
+      (let [tok (get inp pos)]
+        (println "> " name pos tok)
+        (this pos inp
+              (fn [npos nval] 
+                (println "< " name pos tok nval)
+                (cont npos nval)))))
     this))
 
 (defn once 
@@ -71,7 +72,7 @@
 (defn sym 
   "parses clojure symbol token by its name (ignores namespace)"
   [t]
-  (trace (format "name %s" t) 
+  (trace (format "name-%s" t) 
          (guard any 
                 #(and (symbol? %) (= (name t) (name %))))))
 
@@ -184,7 +185,7 @@
   [this input]
   (let [res (transient [])]
     (binding [*memoTable* (atom {})]
-      (this 0 input
+      (this 0 (vec input)
             (fn [npos val]
               (conj! res val))))
     (persistent! res)))
@@ -242,7 +243,7 @@
           f (memo factor)
           byprec (fn [k] 
                    (let [v (first (filter #(>= (key %) k) m))]
-                    (if v (deferRef (val v)) f))) ; TODO: the sequence!
+                    (if v (deferRef (val v)) f)))
           prim (fn [t]
                  (if (number? t) 
                    (byprec t)

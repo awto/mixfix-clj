@@ -11,5 +11,6 @@
 (defmacro % [& args] `(%/% ~@args))
 (defmacro %* [& args] `(%/%* ~@args))
 (defmacro remove-op [& args] `(%/remove-op ~@args))
+(defmacro %* [& args] `(%/%* ~@args))
 
 nil

@@ -1,8 +1,8 @@
 # mixfix-clj
 
-Provides mixfix syntax for clojure language.
+Provides mixfix syntax for Clojure language.
 
-It simply allows writing clojure expressions like this:
+It simply allows writing Clojure expressions like this:
 
 ```clojure
 
@@ -13,8 +13,20 @@ It simply allows writing clojure expressions like this:
 
 You can also easily define nice syntax of your next EDSL.
 
-This is just simple macros, no extra build steps and no leiningen plugins are 
-required.
+For example some SQL-like
+
+```clojure
+(exec (select * from table1, table2 where col1 < col2 group by col1, col2)) 
+``` 
+
+The `exec` there is user-defined macros. It uses this library 
+`clojure.tools.mixfix.core\parse` function to convert concrete SQL-like
+syntax into abstract syntax tree. This tree is plain Clojure form, and it easy 
+to analyze or execute or convert into some DBMS query syntax using standard 
+Clojure means, like `clojure.walk`.
+
+This is just simple macros, no extra build steps and no extra build steps 
+are required.
 
 ## Usage
 
@@ -24,6 +36,8 @@ Import the library:
 (ns sample.mixfix
   (:require [clojure.tools.mixfix :as m]))
 ```
+
+This version doesn't support ClojureScript.
 
 Now define some operators:
 
@@ -104,6 +118,9 @@ Plain clojure application may be also converted back into mixfix syntax.
 (m/to-mixfix (- (+ (- (+ 1 2) 3) 4) 5))); ==> (1 + 2 - 3 + 4 - 5)
 
 ``` 
+
+It matches syntax definitions by arity, so if there are ambiguous symbol name
+plus arity it may fail to do this property.
 
 ## Associative operators
 
@@ -206,6 +223,28 @@ to `clojure.tools.mixfix.core/parse` function via dynamic variable
 parameters. Variable `clojure.tools.mixfix.core/global` is used as default
 scope. There is also corresponding macros `%*` with additional parameter for the
 scope specification.
+
+For example defining SQL-like syntax:
+
+```clojure
+(r/declare-lang sql)
+(r/op sql 100 select [select [+] from [+] where [+] group by [+]]) 
+(r/op sql 100 select [select [+] from [+] where [+]]) 
+(r/op sql 100 select [select [+] from [+]]) 
+(r/op sql 200 list [[assoc] [+]])
+(r/op sql 150 = [[+] = [+]])
+(r/op sql 150 < [[+] < [+]])
+; ......
+
+```
+
+It looks a bit verbose, especially if the language size will grow. But, since
+`op` there is only a macros (not clojure syntax part), it may be easily 
+generated. Or some next version will provide picture syntax for this.
+
+These syntax further is parsed into AST with `clojure.tools.mixfix.core/parse`
+function with `clojure.tools.mixfix.core/*lang*` variable bound to `sql` 
+variable.
 
 ## Limitations
 
