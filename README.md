@@ -30,6 +30,10 @@ are required.
 
 ## Usage
 
+Install it using Clojars:
+
+[![Clojars Project](http://clojars.org/mixfix-clj/latest-version.svg)](http://clojars.org/mixfix-clj)
+
 Import the library:
 
 ```clojure
