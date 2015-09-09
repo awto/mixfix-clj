@@ -25,8 +25,7 @@ syntax into abstract syntax tree. This tree is plain Clojure form, and it easy
 to analyze or execute or convert into some DBMS query syntax using standard 
 Clojure means, like `clojure.walk`.
 
-This is just simple macros, no extra build steps and no extra build steps 
-are required.
+This is just simple macros, no extra build steps are required.
 
 ## Usage
 
@@ -71,6 +70,9 @@ And use them:
 (m/% 2 - (2 - 2)); ==> 2
 (m/% let [x 2 y 2] (x + y - 2)); ==> 2
 (m/% if 2 is 2 then if 3 is 4 then 5 else 6); ==> 6
+
+;; it also composes with plain clojure application forms: 
+
 (m/% 2 + (- 2 2)) ; ==> 2
 
 ```
@@ -96,20 +98,6 @@ In the current version they may be either:
 So this is it. Mixfix operators are converted into plain clojure application 
 form using ` %` macros. It walks through all sub-forms and parses their content 
 too. There is also shallow version `%1` which parses only a single level.
-
-```clojure
-
-(m/% 2 + 2)       ; ==> 4
-(m/% 2 + 2 - 2)  ; ==> 4
-(m/% 2 + (2 - 2)); ==> 2
-(m/% let [x 2 y 2] (x + y - 2)); ==> 4
-(m/% if 2 is 3 then if 3 is 4 then 5 else 6); ==> 4
-
-;; it also composes with plain clojure application forms: 
-
-(m/% 2 + (- 2 2)) ; ==> 2
-
-```
 
 There is also `clojure.tools.mixfix/defn` macros which simply redirects to 
 `clojure.core/defn` but wraps arguments with operators parsing macros.
@@ -231,13 +219,13 @@ scope specification.
 For example defining SQL-like syntax:
 
 ```clojure
-(r/declare-lang sql)
-(r/op sql 100 select [select [+] from [+] where [+] group by [+]]) 
-(r/op sql 100 select [select [+] from [+] where [+]]) 
-(r/op sql 100 select [select [+] from [+]]) 
-(r/op sql 200 list [[assoc] [+]])
-(r/op sql 150 = [[+] = [+]])
-(r/op sql 150 < [[+] < [+]])
+(m/declare-lang sql)
+(m/op sql 100 select [select [+] from [+] where [+] group by [+]]) 
+(m/op sql 100 select [select [+] from [+] where [+]]) 
+(m/op sql 100 select [select [+] from [+]]) 
+(m/op sql 200 list [[assoc] [+]])
+(m/op sql 150 = [[+] = [+]])
+(m/op sql 150 < [[+] < [+]])
 ; ......
 
 ```
