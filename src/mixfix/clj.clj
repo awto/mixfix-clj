@@ -1,6 +1,6 @@
-(ns clojure.tools.mixfix
+(ns mixfix.clj
    (:refer-clojure :exclude [defn])
-   (:require [clojure.core :as c] [clojure.tools.mixfix.core :as %]))
+   (:require [clojure.core :as c] [mixfix.clj.core :as %]))
 
 (defmacro defn
   "Same as clojure.core/defn but unwraps mixfix operators"

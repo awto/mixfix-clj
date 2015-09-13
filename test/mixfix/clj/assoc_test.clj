@@ -1,6 +1,6 @@
-(ns clojure.tools.mixfix.assoc_test
+(ns mixfix.clj.assoc_test
   (:require [clojure.test :refer :all]
-            [clojure.tools.mixfix.core :refer :all]))
+            [mixfix.clj.core :refer :all]))
 
 (op 2000 oper1 [[+] $$ [assoc]])
 (op 2000 oper2 [[assoc id 0] || [+]])

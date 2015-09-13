@@ -1,7 +1,7 @@
-(ns clojure.tools.mixfix.sql-test
+(ns mixfix.clj.sql-test
   (:refer-clojure :exclude [*])
   (:require [clojure.test :refer :all]
-            [clojure.tools.mixfix.core :as r]
+            [mixfix.clj.core :as r]
             ))
 
 (r/declare-lang sql)

@@ -1,7 +1,7 @@
-(ns clojure.tools.mixfix.core-test
+(ns mixfix.clj.core-test
   (:require [clojure.test :refer :all]
-            [clojure.tools.mixfix.core :refer :all]
-            [clojure.tools.mixfix.parser :as r]))
+            [mixfix.clj.core :refer :all]
+            [mixfix.clj.parser :as r]))
 
 (remove-op form)
 (remove-op +)

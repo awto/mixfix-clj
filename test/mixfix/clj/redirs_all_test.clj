@@ -1,7 +1,7 @@
-(ns clojure.tools.mixfix.redirs-all-test
+(ns mixfix.clj.redirs-all-test
   (:refer-clojure :exclude [defn def])
   (:require [clojure.test :refer :all]
-            [clojure.tools.mixfix :refer :all]))
+            [mixfix.clj :refer :all]))
 
 (op 400 + [[assoc] + [+]])
 

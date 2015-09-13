@@ -1,5 +1,5 @@
-(ns clojure.tools.mixfix.core
-  (:require [clojure.tools.mixfix.parser :as r]
+(ns mixfix.clj.core
+  (:require [mixfix.clj.parser :as r]
             [clojure.walk :as w]
             cljs.analyzer))
 
@@ -169,8 +169,8 @@
 (defmacro remove-op
   "removes all operators which output forms with this head symbol"
   ([lang symbol] (binding [*lang* @(resolve &env lang)] 
-                   (clojure.tools.mixfix.core/rm-op symbol) nil))
-  ([symbol] (clojure.tools.mixfix.core/rm-op symbol) nil))
+                   (rm-op symbol) nil))
+  ([symbol] (rm-op symbol) nil))
 
 (def ^:dynamic *locals*
   "Specifies locally defined symbols, 
@@ -295,7 +295,7 @@
 
 (defmacro form [& args] `(~@args))
 
-(op 1000 clojure.tools.mixfix.core/form [[assoc] [+]])
+(op 1000 mixfix.clj.core/form [[assoc] [+]])
 
 nil
 

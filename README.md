@@ -20,7 +20,7 @@ For example some SQL-like
 ``` 
 
 The `exec` there is user-defined macros. It uses this library 
-`clojure.tools.mixfix.core\parse` function to convert concrete SQL-like
+`mixfix.clj.core\parse` function to convert concrete SQL-like
 syntax into abstract syntax tree. This tree is plain Clojure form, and it easy 
 to analyze or execute or convert into some DBMS query syntax using standard 
 Clojure means, like `clojure.walk`.
@@ -37,14 +37,14 @@ Import the library:
 
 ```clojure
 (ns sample.mixfix
-  (:require [clojure.tools.mixfix :as m]))
+  (:require [mixfix.clj :as m]))
 ```
 
 or for ClojureScript
 
 ```clojure
 (ns sample.mixfix
-  (:require-macros [clojure.tools.mixfix :as m]))
+  (:require-macros [mixfix.clj :as m]))
 ```
 
 Now define some operators:
@@ -104,7 +104,7 @@ So this is it. Mixfix operators are converted into plain clojure application
 form using ` %` macros. It walks through all sub-forms and parses their content 
 too. There is also shallow version `%1` which parses only a single level.
 
-There is also `clojure.tools.mixfix/defn` macros which simply redirects to 
+There is also `mixfix.clj/defn` macros which simply redirects to 
 `clojure.core/defn` but wraps arguments with operators parsing macros.
 
 Plain clojure application may be also converted back into mixfix syntax.
@@ -151,7 +151,7 @@ predefined operator in this version of the library).
 
 ```
 
-The library provides an auxiliary macros `clojure.tools.mixfix.core/form` it 
+The library provides an auxiliary macros `mixfix.clj.core/form` it 
 simply splices its arguments in a list without doing with them anything. So as 
 a result it will be plain clojure application. For example
 
@@ -194,11 +194,11 @@ grouping mixfix sub-expressions and for specify clojure applications.
 After the library detected parser error within parens it will try to interpret 
 them as a plain clojure list. Library will conclude the form is ok if all 
 symbols there can be resolved. This behavior may be also turned off using 
-`clojure.tools.mixfix.core/*clojure-apps*` dynamic variable if your EDSL 
+`mixfix.clj.core/*clojure-apps*` dynamic variable if your EDSL 
 doesn't need it. After only mixfix predefined operators can be present in 
 parsed expression.
 
-Another thing may be useful for custom EDSL, is `clojure.tools.mixfix/*locals*` 
+Another thing may be useful for custom EDSL, is `mixfix.clj.core/*locals*` 
 variable, which is a set of symbols bound to some local variable in a form 
 currently parsed. By default it is inited from &env parameter, but for custom 
 EDSL, if it has some custom bound names they must be added to the set.
@@ -210,14 +210,14 @@ they may be assigned to some named scope. This scope can be used in parse
 function to convert it to plain clojure form for further handling by EDSL 
 implementation. 
 
-Such scope is defined using `clojure.tools.mixfix.core/declare-lang` macros. The
+Such scope is defined using `mixfix.clj.core/declare-lang` macros. The
 first parameter is a name of the scope. The second optional parameter is another 
 scope where initial operators' definitions are to be copied from. It creates 
 a variable with the same name which is used for referencing the scope. It may be
 passed as the optional first argument in `op` directives. And it may be passed 
-to `clojure.tools.mixfix.core/parse` function via dynamic variable 
-`clojure.tools.mixfix.core/*lang*` form the macro receiving EDSL expressions as 
-parameters. Variable `clojure.tools.mixfix.core/global` is used as default
+to `mixfix.clj.core/parse` function via dynamic variable 
+`mixfix.clj.core/*lang*` form the macro receiving EDSL expressions as 
+parameters. Variable `mixfix.clj.core/global` is used as default
 scope. There is also corresponding macros `%*` with additional parameter for the
 scope specification.
 
@@ -239,8 +239,8 @@ It looks a bit verbose, especially if the language size will grow. But, since
 `op` there is only a macros (not clojure syntax part), it may be easily 
 generated. Or some next version will provide picture syntax for this.
 
-These syntax further is parsed into AST with `clojure.tools.mixfix.core/parse`
-function with `clojure.tools.mixfix.core/*lang*` variable bound to `sql` 
+These syntax further is parsed into AST with `mixfix.clj.core/parse`
+function with `mixfix.clj.core/*lang*` variable bound to `sql` 
 variable.
 
 ## Limitations
@@ -253,7 +253,7 @@ can understand. On the other hand mixfix-clj doesn't know anything about this
 keyword. So it will report parser error. It could ignore this and leave the 
 form as is but it would significantly reduce diagnostic capabilities. There is 
 a macros for registering such kind of keywords (namely 
-`clojure.tools.mixfix.core/reg-sym`). But even registered it won't work anyway. 
+`mixfix.clj.core/reg-sym`). But even registered it won't work anyway. 
 Not the problem is ordering of macros expansion. But if the library also uses 
 mixfix-clj for syntax parsing it should work without problems.
 
