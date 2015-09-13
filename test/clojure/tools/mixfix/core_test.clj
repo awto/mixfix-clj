@@ -49,8 +49,8 @@
       (is (= (to-mixfix '(~@c)) '(~@m)))))
 
 (deftest arith-print []
-  (remove-op +)
-  (op 400 + [[] + [+]])
+  (rm-op '+)
+  (add-op 400 '+ [[] '+ ['+]])
   (check (+ 2 3) (2 + 3))
   (check (quot 2 3) (quot 2 3))
   (check (+ (+ 2 3) 4) (2 + 3 + 4))
@@ -76,5 +76,3 @@
   (check (2 2) (2 2))
   (check (2 2 2) (2 2 2))
   (check ((2 2) 2) ((2 2) 2)))
-
-(run-tests)

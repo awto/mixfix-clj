@@ -30,11 +30,11 @@
   (check (oper2 1 (oper2 2 (oper2 3 4))) (1 || (2 || (3 || 4)))))
 
 (deftest space-operators []
-  (op 1000 form [[assoc] [+]])
-  (op 200 if [if [+] then []])
+  (add-op 1000 'form [['assoc] ['+]])
+  (add-op 200 'if ['if ['+] 'then []])
   (is (= (parse '(if = 2 2 then :t)) '(if (form = 2 2) :t)))
-  (remove-op form)
+  (rm-op 'form)
   (is (= (parse '(if (= 2 2) then :t)) '(if (= 2 2) :t)))
-  (op 1000 list [[assoc] [+]])
+  (add-op 1000 'list [['assoc] ['+]])
   (is (= (parse '(1 2 3)) '(list 1 2 3)))
-  (remove-op list))
+  (rm-op 'list))

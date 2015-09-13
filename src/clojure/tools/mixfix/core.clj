@@ -1,6 +1,7 @@
 (ns clojure.tools.mixfix.core
   (:require [clojure.tools.mixfix.parser :as r]
-            [clojure.walk :as w]))
+            [clojure.walk :as w]
+            cljs.analyzer))
 
 (defmacro declare-lang 
   "Defines a name which may be used to specify scopes of mixfix operators.
@@ -10,6 +11,12 @@
   ([nm par] `(def ~nm (atom @~par))))
 
 (declare-lang global)
+
+(def ^:dynamic *clojure-dialect* "Clojure dialect name" :clj)
+
+(def ^:dynamic *lang* 
+  "specifies current language"
+  global)
 
 (defn- hole-opts [opts] 
   (->> opts (partition 2 1) (map vec) (into {})))
@@ -115,7 +122,7 @@
       (throw (IllegalArgumentException. "only one assoc spec is allowed")))
     (if x [x opt])))
 
-(defn- add-op [table prec symbol pict]
+(defn- do-add-op [table prec symbol pict]
   (let [[cpict asc] (compile-picture prec pict)
         arity (picture-arity cpict)
         ppict (print-compile-pict cpict)
@@ -136,33 +143,34 @@
       (update-in [:read prec] (partial apply assoc) [cpict fun])
       (assoc-in [:write symbol arity] [prec popts])
       (update-in [:origin] conj [prec symbol pict])
-      (assoc-in [:parser] nil))))
+      (assoc-in [:clj] nil)
+      (assoc-in [:cljs] nil))))
 
 (defn- add-ops [table ops]
-  (reduce (fn [table op] (apply (partial add-op table) op)) table ops))
+  (reduce (fn [table op] (apply (partial do-add-op table) op)) table ops))
 
 (defn- del-op [table symbol]
-  (add-ops {} (remove #(= symbol (second %)) (:origin table))))
+  (add-ops {} (remove #(= (name symbol) (name (second %))) (:origin table))))
 
-(defn mk-op [lang prec picture symbol]
-  (swap! lang add-op prec picture symbol))
+(defn add-op [prec picture symbol]
+  (swap! *lang* do-add-op prec picture symbol))
 
-(defn rm-op [lang symbol] (swap! lang del-op symbol))
+(defn rm-op [symbol] (swap! *lang* del-op symbol))
 
 (defmacro op
   "Defines mixfix operator. First optional argument is a name for the 
    operator's scope. The second is precedence level of the operator. The bigger 
    the number the tightly the operator binds. The third is resulting form head
    symbol. And the last one is a mixfix picture of the operator."
-  ([lang prec symbol picture] 
-    `(do (mk-op ~lang ~prec '~symbol '(~@picture)) nil))
-  ([prec symbol picture] 
-    `(do (mk-op *lang* ~prec '~symbol '(~@picture)) nil)))
+  ([lang prec symbol picture]
+    (binding [*lang* @(resolve &env lang)] (add-op prec symbol picture) nil))
+  ([prec symbol picture] (add-op prec symbol picture) nil))
 
 (defmacro remove-op
   "removes all operators which output forms with this head symbol"
-  ([lang symbol] `(do (rm-op ~lang '~symbol) nil))
-  ([symbol] `(do (rm-op *lang* '~symbol) nil)))
+  ([lang symbol] (binding [*lang* @(resolve &env lang)] 
+                   (clojure.tools.mixfix.core/rm-op symbol) nil))
+  ([symbol] (clojure.tools.mixfix.core/rm-op symbol) nil))
 
 (def ^:dynamic *locals*
   "Specifies locally defined symbols, 
@@ -182,23 +190,23 @@
 
 (defn- check-locals [n] (*locals* n))
 
-(defn prim? [] (every-pred
-                 (complement *keywords*)
-                 (some-fn (complement symbol?)
-                          check-locals
-                          (partial resolve))))
+(defn- prim?-def [] (every-pred
+                      (complement *keywords*)
+                      (some-fn (complement symbol?)
+                               check-locals
+                               (case *clojure-dialect*
+                                 :cljs (partial cljs.analyzer/resolve-var nil)
+                                 :clj (partial resolve)))))
 
+(def ^:dynamic prim? prim?-def)
+  
 (defn prim [] (r/guard r/any (prim?)))
 (defn clj-mixfix
    "builds mixfix expression table with clojure syntax"
    [table]
-   (binding 
+   (binding
      [*keywords* (set (for [[_ i] table [j _] i k j :when (symbol? k)] k))]
      (r/exp-table table (prim))))
-
-(def ^:dynamic *lang* 
-  "specifies current language"
-  global)
 
 (defn describe-lang 
   ([] (:origin @*lang*))
@@ -206,11 +214,10 @@
 
 (defn- get-parser []
   (let [ldef @*lang*]
-    (or (:parser ldef)
+    (or (*clojure-dialect* ldef)
         (let [res (clj-mixfix (:read ldef))]
-          (swap! *lang* assoc :parser res)
+          (swap! *lang* assoc *clojure-dialect* res)
           res))))
-
 
 (def ^:dynamic *clojure-apps* 
   "Defines if the library should try to fallback to plain clojure forms parsing" 
@@ -228,8 +235,9 @@
         (cond 
           (empty? r) (if (and *clojure-apps* (every? prim-check col))
                        col
+                       ;'(str (format "no parse for: %s" col))
                        (throw (IllegalArgumentException. 
-                                (format "no parse for: %s" col))))
+                               (format "no parse for: %s" col))))
           (= 1 (count r)) (first r)
           :else (throw (IllegalArgumentException. 
                          (format "%s is ambiguous, options are: %s" col r))))))))
@@ -242,26 +250,29 @@
 (defmacro %1
   "Shallow version of %."
   [& col]
-  (let [f (binding [*locals* (into @specials (keys &env))]
+  (let [f (binding [*locals* (into @specials (keys &env))
+                    *clojure-dialect* (if (:ns &env) :cljs :clj)]
             (parse col))]
     `(~@f)))
 
 (defn propagate-%
-  ([v] (w/prewalk (fn [i] (if (list? i) (cons (var %1) i) i)) v))
+  ([v] 
+    (w/prewalk (fn [i] (if (list? i) (cons (var %1) i) i)) v))
   ([lang v] (w/prewalk (fn [i] (if (list? i) (list* '%1* lang i) i)) v)))
 
 (defmacro %
   "Transforms form and its subforms into clojure syntax without mixfix ops and
    evaluate it."
   [& f]
-  `(%1 ~@(propagate-% f)))
+  `(%1 ~@(propagate-% (vec f))))
 
 ;;; specifying custom language
 (defmacro %1*
   "Shallow version of %*."
   [lang & col]
   (let [f (binding [*locals* (into @specials (keys &env))
-                    *lang* @(resolve lang)]
+                    *lang* @(resolve lang)
+                    *clojure-dialect* (if (:ns &env) :cljs :clj)]
             (parse col))]
     `(~@f)))
 
@@ -269,7 +280,7 @@
   "Transforms form and its subforms into clojure syntax without mixfix ops. 
    First argument specifies language name."
   [lang & f]
-  `(%1* ~lang ~@(propagate-% lang f)))
+  `(%1* ~lang ~@(propagate-% lang (vec f))))
 
 (defn to-mixfix-1
   "Reverse of %. Takes a plain clojure form and transforms it to the one with
@@ -284,7 +295,7 @@
 
 (defmacro form [& args] `(~@args))
 
-(op 1000 form [[assoc] [+]])
+(op 1000 clojure.tools.mixfix.core/form [[assoc] [+]])
 
 nil
 

@@ -40,7 +40,12 @@ Import the library:
   (:require [clojure.tools.mixfix :as m]))
 ```
 
-This version doesn't support ClojureScript.
+or for ClojureScript
+
+```clojure
+(ns sample.mixfix
+  (:require-macros [clojure.tools.mixfix :as m]))
+```
 
 Now define some operators:
 

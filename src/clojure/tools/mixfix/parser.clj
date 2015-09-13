@@ -183,10 +183,14 @@
   "Runs the parser for `input`. Returns vector of possible parser's values.
    It is only 1 value if the parser is non ambiguous."
   [this input]
+  (when *enableTrace*
+    (println "parse" input))
   (let [res (transient [])]
     (binding [*memoTable* (atom {})]
       (this 0 (vec input)
             (fn [npos val]
+              (when *enableTrace*
+                (println "parse result" input val npos)) 
               (conj! res val))))
     (persistent! res)))
 
@@ -240,7 +244,7 @@
           m (into (sorted-map) (for [[i] table] [i (atom zero)]))
           top (->> m first val deferRef (trace "top") memo)
           res (full top)
-          f (memo factor)
+          f (memo (trace "factor" factor))
           byprec (fn [k] 
                    (let [v (first (filter #(>= (key %) k) m))]
                     (if v (deferRef (val v)) f)))
