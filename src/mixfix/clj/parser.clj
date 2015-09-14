@@ -194,6 +194,14 @@
               (conj! res val))))
     (persistent! res)))
 
+(defn all
+  "returns all possible result positions and values for `this` parser"
+  [this]
+  (fn [p i c]
+    (let [res (transient [])]
+      (this p i (fn [np v] (conj! res [np v])))
+      (persistent! res))))
+
 (defn- deferRef [ref]
   (fn [pos inp cont] (@ref pos inp cont)))  
 
@@ -249,8 +257,9 @@
                    (let [v (first (filter #(>= (key %) k) m))]
                     (if v (deferRef (val v)) f)))
           prim (fn [t]
-                 (if (number? t) 
-                   (byprec t)
+                 (if (map? t)
+                   (let [sub (byprec (:prec t))]
+                     (if (:cut t) (det sub) sub))
                    ($ (constantly kwVal) (sym t))))
           layers (into (hash-map) 
                        (reductions

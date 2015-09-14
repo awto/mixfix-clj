@@ -1,4 +1,4 @@
-(defproject mixfix-clj "0.2.0"
+(defproject mixfix-clj "0.3.0-SNAPSHOT"
   :description "mixfix operators syntax for clojure"
   :url "https://github.com/awto/mixfix-clj"
   :license {:name "Eclipse Public License"

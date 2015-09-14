@@ -22,7 +22,7 @@
   (->> opts (partition 2 1) (map vec) (into {})))
 
 (defn- picture-arity [picture]
-  (count (filter number? picture)))
+  (count (filter map? picture)))
 
 (defn- lang-def? [d] (and (:read d) (:write d)))
 
@@ -38,11 +38,12 @@
                (nil? pname) prec
                :else (inc prec))
         asc (contains? opts :assoc)
-        rst (vec (remove (some-fn #{:+ :assoc} number?) opts))]
+        rst (vec (remove (some-fn #{:+ :assoc} number?) opts))
+        cut (contains? opts :!)]
     (when-not (empty? rst)
       (throw (IllegalArgumentException. 
                      (format "unknown items in syntax hole definition %s" rst))))
-    [prec asc ids]))
+    [{:prec prec :cut cut} asc ids]))
 
 (defn- compile-picture
   [prec picture] {:pre [(number? prec)]}
@@ -65,7 +66,7 @@
     ([] (xf))
     ([result] (xf [result @buf]))
     ([result input] 
-      (if (number? input)
+      (if (map? input)
         (let [cur @buf]
           (vreset! buf [])
           (xf result [cur input]))
@@ -92,7 +93,7 @@
           outarg (fn [arg [pfx aprec]] 
                    (if (seq? arg)
                      (concat pfx 
-                             (binding [*prec* aprec]
+                             (binding [*prec* (:prec aprec)]
                                (print-from-table table arg)))
                      (conj pfx arg)))
           iter (fn [prec args pict tail]
