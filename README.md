@@ -58,9 +58,6 @@ Now define some operators:
 (m/op 200 or [[] or [+]]) 
 (m/op 300 and [[] and [+]]) 
 (m/op 400 = [[] is []])
-
-(defn s [a b] [a b])
-
 (m/op 100 if [if [+] then []])
 (m/op 110 if [if [+] then [] else []])
 ```
