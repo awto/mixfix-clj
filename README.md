@@ -258,6 +258,11 @@ At the moment there is no namespaces support for operator's part. They are
 simply compared by `clojure.core/name`. But their support is planned for some
 next version. This will be another level of operations scoping.
 
+## TODO:
+
+ * bindings (now only clojure subforms such as let, or fn will be considered)
+ * better diagnostics
+
 ## License
 
 Copyright © 2015 Vitaliy Akimov
