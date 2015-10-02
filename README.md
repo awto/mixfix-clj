@@ -92,7 +92,7 @@ In the current version they may be either:
 
   * `empty` - means same precedence level as its operator
   * `number` - specifies any precedence explicitly
-  * `+` - precedence is the same as the operator's one
+  * `+` - precedence is precendence of the operator plus one
   * `assoc` - will unwrap sub-form if it has same head symbol as the operator
   * `id <value>`  - for assoc operators will treat as identity for the 
     operation, by default `nil`.
@@ -105,7 +105,6 @@ There is also `mixfix.clj/defn` macros which simply redirects to
 `clojure.core/defn` but wraps arguments with operators parsing macros.
 
 Plain clojure application may be also converted back into mixfix syntax.
-
 
 ```clojure
 
